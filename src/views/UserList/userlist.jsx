@@ -1,12 +1,18 @@
 import { useState, useEffect } from "react";
-import { Table, Button, Modal } from "react-bootstrap";
+import { Table, Button, Alert } from "react-bootstrap";
+import Swal from "sweetalert2";
+import UserDetailModal from "./component/modal/detail";
+import UserCreateModal from "./component/modal/create";
 
 const UserList = () => {
   const [users, setUsers] = useState([]);
-  const [error, setError] = useState(null);
+  const [info, setInfo] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [showModal, setShowModal] = useState(false);
+
+  // modal
+  const [showModalCreate, setShowModalCreate] = useState(false);
+  const [showModalDetail, setShowModalDetail] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -20,12 +26,50 @@ const UserList = () => {
         setUsers(data);
       } catch (error) {
         console.error("Error fetching users:", error);
-        setError("Failed to fetch users");
+        setInfo({
+          typeVariant: "danger",
+          desc: "Failed to fetch users",
+        });
       }
     };
 
     fetchData();
   }, []);
+
+  // create
+  const handleCreate = async (newUser) => {
+    try {
+      const response = await fetch("https://fakestoreapi.com/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newUser),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create user");
+      }
+
+      const data = await response.json();
+      console.log("User created successfully:", data);
+
+      setShowModalCreate(false);
+      setUsers((prevUsers) => [...prevUsers, data]);
+
+      Swal.fire({
+        title: "Success!",
+        text: "User created successfully",
+        icon: "success",
+      });
+    } catch (error) {
+      console.error("Error creating user:", error);
+      setInfo({
+        typeVariant: "danger",
+        desc: "Failed to create user",
+      });
+    }
+  };
 
   //   detail
   const handleDetail = async (userId) => {
@@ -39,15 +83,14 @@ const UserList = () => {
 
       const data = await response.json();
       setSelectedUser(data);
-      setShowModal(true);
+      setShowModalDetail(true);
     } catch (error) {
       console.error("Error fetching user details:", error);
-      setError("Failed to fetch user details");
+      setInfo({
+        typeVariant: "danger",
+        desc: "Failed to fetch user details",
+      });
     }
-  };
-
-  const handleCloseModal = () => {
-    setShowModal(false);
   };
 
   //   Edit
@@ -55,10 +98,68 @@ const UserList = () => {
     console.log(`Edit user with ID ${userId}`);
   };
 
+  // Delete
+  const handleDelete = async (userId) => {
+    const result = await Swal.fire({
+      title: "Confirm Delete",
+      text: "Are you sure you want to delete this user?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc3545",
+      cancelButtonColor: "#6c757d",
+      confirmButtonText: "Delete",
+    });
+
+    if (result.isConfirmed) {
+      performDelete(userId);
+    }
+  };
+
+  const performDelete = async (userId) => {
+    try {
+      const response = await fetch(`https://fakestoreapi.com/users/${userId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch user details");
+      }
+
+      const data = await response.json();
+      console.log(data);
+      setInfo({
+        typeVariant: "success",
+        desc: "Delete user success",
+      });
+    } catch (error) {
+      setInfo({
+        typeVariant: "danger",
+        desc: "Failed to delete user",
+      });
+    }
+  };
+
+  // close alert
+  const handleCloseInfo = () => {
+    setInfo(null);
+  };
+
   return (
     <div>
       <h1>User List</h1>
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {info && (
+        <Alert variant={info.typeVariant} onClose={handleCloseInfo} dismissible>
+          {info.desc}
+        </Alert>
+      )}
+      <Button
+        variant="success"
+        size="sm"
+        className="my-3"
+        onClick={() => setShowModalCreate(true)}
+      >
+        Create New User
+      </Button>
       <Table striped bordered hover>
         <thead>
           <tr>
@@ -98,6 +199,13 @@ const UserList = () => {
                   onClick={() => handleEdit(user.id)}
                 >
                   Edit
+                </Button>{" "}
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => handleDelete(user.id)}
+                >
+                  Delete
                 </Button>
               </td>
             </tr>
@@ -105,37 +213,17 @@ const UserList = () => {
         </tbody>
       </Table>
 
-      {/* Modal for User Detail */}
-      <Modal show={showModal} onHide={handleCloseModal}>
-        <Modal.Header closeButton>
-          <Modal.Title>User Detail</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedUser && (
-            <div>
-              <p>ID: {selectedUser.id}</p>
-              <p>Email: {selectedUser.email}</p>
-              <p>Username: {selectedUser.username}</p>
-              <p>
-                Name:{" "}
-                {`${selectedUser.name?.firstname} ${selectedUser.name?.lastname}`}
-              </p>
-              <p>
-                Address:{" "}
-                {selectedUser.address
-                  ? `${selectedUser.address.street}, ${selectedUser.address.city}, ${selectedUser.address.zipcode}`
-                  : ""}
-              </p>
-              <p>Phone: {selectedUser.phone}</p>
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModal}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      {/* Modal */}
+      <UserCreateModal
+        showModal={showModalCreate}
+        handleCloseModal={() => setShowModalCreate(false)}
+        handleCreate={handleCreate}
+      />
+      <UserDetailModal
+        user={selectedUser}
+        showModal={showModalDetail}
+        handleCloseModal={() => setShowModalDetail(false)}
+      />
     </div>
   );
 };

@@ -22,6 +22,11 @@ const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (values.username === "" || values.password === "") {
+      setError("Username and password cannot be empty");
+      return;
+    }
+
     try {
       const response = await fetch("https://fakestoreapi.com/auth/login", {
         method: "POST",
@@ -36,24 +41,13 @@ const LoginPage = () => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log(data);
-
-        // Simpan token ke localStorage
         localStorage.setItem("token", data.token);
-
-        // Setelah itu, lakukan pengalihan halaman
         navigate("/user-list");
       } else {
-        const errorData = await response.json();
-        if (response.status === 401) {
-          setError("Invalid username or password");
-        } else {
-          setError(errorData.message || "Login failed");
-        }
+        setError("Invalid username or password");
       }
     } catch (error) {
-      console.error("Error during login:", error);
-      setError("Error during login");
+      setError("Invalid username or password");
     }
   };
 
